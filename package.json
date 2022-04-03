@@ -1,0 +1,24 @@
+{
+  "name": "reddit-place",
+  "version": "1.0.0",
+  "description": "Reddit /r/place bot",
+  "main": "index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vanflux/reddit-place.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/vanflux/reddit-place/issues"
+  },
+  "homepage": "https://github.com/vanflux/reddit-place#readme",
+  "dependencies": {
+    "graphql-client": "^2.0.1",
+    "request": "^2.88.2",
+    "ws": "^8.5.0"
+  }
+}
