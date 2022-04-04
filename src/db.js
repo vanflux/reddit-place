@@ -41,4 +41,12 @@ module.exports = class DB {
     }
     this.setState(state);
   }
+
+  static genSessionId() {
+    let id = 1;
+    while(true) {
+      if (!this.getSession(String(id))) return String(id);
+      id++;
+    }
+  }
 }

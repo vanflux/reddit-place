@@ -4,17 +4,20 @@ const WebSocket = require('ws');
 const DB = require('./db');
 
 module.exports = class Session {
-  constructor(sessionData) {
+  constructor(sessionData, agent) {
     this.data = sessionData;
+    this.agent = agent;
   }
 
-  static async requestSessionAuth(sessionData) {
+  static async requestSessionAuth(sessionData, agent) {
+    if (!agent) return console.error('AGENT NOT FOUND! REQUEST SESSION AUTH');
     return new Promise(resolve => {
       const j = request.jar();
       const url = 'https://www.reddit.com';
       j.setCookie(request.cookie('reddit_session=' + sessionData.redditSession), url);
       j.setCookie(request.cookie('session=' + sessionData.session), url);
-      request.get({
+      request({
+        agent,
         jar: j,
         url: 'https://www.reddit.com/r/place/',
       }, (error, request, body) => {
@@ -34,13 +37,15 @@ module.exports = class Session {
     });
   }
 
-  static async create(data) {
+  static async create(data, agent) {
+    if (!agent) return console.log('AGENT NOT FOUND! SESSION CREATE');
     const id = data.id;
     if (data.cooldownError) return console.log('Skipping session', id, 'cooldown error');
     if (data.authError) return console.log('Skipping session', id, 'auth error');
+    if (data.banned) return console.log('Skipping session', id, 'banned');
 
     if (!data.auth) {
-      const res = await this.requestSessionAuth(data);
+      const res = await this.requestSessionAuth(data, agent);
       if (res.hasError) {
         console.log('Session', id, 'failed at loading auth', res.error);
         data.authError = true;
@@ -56,7 +61,7 @@ module.exports = class Session {
       if (expiresIn <= 60000) {
         console.log('Session', id, 'expired, renewing...');
         
-        const res = await this.requestSessionAuth(data);
+        const res = await this.requestSessionAuth(data, agent);
         if (res.hasError) {
           console.log('Session', id, 'failed at loading auth on renew', res.error);
           data.authError = true;
@@ -71,10 +76,11 @@ module.exports = class Session {
       }
     }
 
-    return new Session(data);
+    return new Session(data, agent);
   }
 
   createGraphClient() {
+    if (!this.agent) return console.log('AGENT NOT FOUND! CREATE GRAPH CLIENT');
     return GraphQLClient({
       url: 'https://gql-realtime-2.reddit.com/query',
       headers: {
@@ -84,7 +90,8 @@ module.exports = class Session {
         'apollographql-client-version': '0.0.1',
         'Referer': 'https://hot-potato.reddit.com/',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:98.0) Gecko/20100101 Firefox/' + (Math.floor(Math.random() * 5) + 95) + '.0',
-      }
+      },
+      agent: this.agent,
     });
   }
 
@@ -131,10 +138,16 @@ module.exports = class Session {
       }
     }
     if (nextPlaceTime != -1) {
-      const availableIn = Math.floor((nextPlaceTime - Date.now()) / 1000);
-      console.log('Session', this.getId(), 'next place time', nextPlaceTime, 'in', availableIn, 'seconds');
-      this.data.cooldown = nextPlaceTime;
-      DB.setSession(this.getId(), this.data);
+      if (nextPlaceTime > 30000 * 1000) {
+        console.log('Session', this.getId(), 'has been banned from canvas!!!!!!!!!!!!');
+        this.data.banned = true;
+        DB.setSession(this.getId(), this.data);
+      } else {
+        const availableIn = Math.floor((nextPlaceTime - Date.now()) / 1000);
+        console.log('Session', this.getId(), 'next place time', nextPlaceTime, 'in', availableIn, 'seconds');
+        this.data.cooldown = nextPlaceTime;
+        DB.setSession(this.getId(), this.data);
+      }
       return true;
     } else {
       console.log('Session', this.getId(), 'cooldown -1 error:', res);
@@ -208,16 +221,20 @@ module.exports = class Session {
         const url = aux?.name;
         switch (type) {
           case 'DiffFrameMessageData':
+            //console.log('Session', this.getId(), 'socket received diff');
             onDiff(url);
             break;
           case 'FullFrameMessageData':
+            //console.log('Session', this.getId(), 'socket received full');
             onFull(url);
             break;
           case 'ConfigurationMessageData':
-            const {colorPalette: palette, canvasConfigurations: regions, canvasWidth: regionWidth, canvasHeight: regionHeight} = aux;
+            //console.log('Session', this.getId(), 'socket received config');
+            const {colorPalette: rawPalette, canvasConfigurations: regions, canvasWidth: regionWidth, canvasHeight: regionHeight} = aux;
             for (const region of regions) {
               subscribe(region.index);
             }
+            const palette = rawPalette?.colors?.map(({hex, index})=>({rgb: this.hexToRgb(hex), index}));
             onConfig({palette, regions, regionWidth, regionHeight});
             break;
         }
@@ -226,6 +243,15 @@ module.exports = class Session {
       }
     };
   }
+  
+  hexToRgb(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : null;
+  };
 
   getToken() {
     return this.data.auth && this.data.auth.accessToken;

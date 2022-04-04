@@ -4,7 +4,8 @@
   "description": "Reddit /r/place bot",
   "main": "index.js",
   "scripts": {
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "dev": "nodemon --ignore *.json --ignore '*.json' src/index.js"
   },
   "repository": {
     "type": "git",
@@ -18,7 +19,14 @@
   "homepage": "https://github.com/vanflux/reddit-place#readme",
   "dependencies": {
     "graphql-client": "^2.0.1",
+    "image-q": "^4.0.0",
+    "onesec-api": "^1.0.2",
+    "pngjs": "^6.0.0",
     "request": "^2.88.2",
+    "socks-proxy-agent": "^6.1.1",
     "ws": "^8.5.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.15"
   }
 }
