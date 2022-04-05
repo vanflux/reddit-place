@@ -1,4 +1,4 @@
-# reddit-place
+# Reddit Place 2022
 Reddit /r/place bot
 
 Implemented:
