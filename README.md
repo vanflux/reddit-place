@@ -1,12 +1,8 @@
 # reddit-place
 Reddit /r/place bot
 
-## development...
-
-Doing:
-- Listen changes
-- Draw images
-
 Implemented:
 - Place pixel
+- Listen changes
+- Draw images
 - Multi account support
